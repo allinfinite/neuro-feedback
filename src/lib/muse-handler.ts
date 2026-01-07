@@ -53,6 +53,10 @@ export class MuseHandler {
   private _connectionQuality = 0;
   private _connectionMode: ConnectionMode = null;
   private _deviceName: string | null = null;
+  
+  // Electrode quality (horseshoe indicator): [TP9, AF7, AF8, TP10]
+  // Values: 1 = good, 2 = medium, 3 = poor, 4 = off
+  private _electrodeQuality: number[] = [4, 4, 4, 4];
 
   // Derived states
   private _dominantWave = 'alpha';
@@ -390,6 +394,8 @@ export class MuseHandler {
           break;
         case '/muse/elements/horseshoe':
           if (Array.isArray(args) && args.length >= 4) {
+            // Store individual electrode quality values
+            this._electrodeQuality = [args[0], args[1], args[2], args[3]];
             const quality =
               args.reduce((sum, v) => sum + (v === 1 ? 1 : v === 2 ? 0.5 : 0), 0) / 4;
             this._connectionQuality = quality;
@@ -546,6 +552,15 @@ export class MuseHandler {
    */
   getHistory(band: keyof BrainwaveBands): number[] {
     return this._history[band] || [];
+  }
+
+  /**
+   * Get electrode quality values
+   * Returns array [TP9, AF7, AF8, TP10] with values 1-4
+   * 1 = good, 2 = medium, 3 = poor, 4 = off
+   */
+  getElectrodeQuality(): number[] {
+    return [...this._electrodeQuality];
   }
 
   // Getters

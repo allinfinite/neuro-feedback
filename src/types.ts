@@ -12,7 +12,7 @@ export interface Session {
   startTime: string;
   endTime: string;
   duration: number; // ms
-  quietPowerTime: number; // ms in target state
+  flowStateTime: number; // ms in target state
   longestStreak: number; // ms longest continuous
   avgCoherence: number; // 0-1
   coherenceHistory: number[]; // time-series for graph
@@ -39,7 +39,7 @@ export interface MuseState {
   focusIndex: number;
 }
 
-export interface QuietPowerState {
+export interface FlowState {
   isActive: boolean;
   sustainedMs: number;
   betaAlphaRatio: number;
@@ -57,12 +57,39 @@ export interface AudioSettings {
   rewardVolume: number;
 }
 
+// Threshold settings for Flow State detection
+export interface ThresholdSettings {
+  coherenceThreshold: number; // 0-1, default 0.7 (70%)
+  timeThreshold: number; // ms, default 5000 (5 seconds)
+}
+
+// Binaural beat presets
+export type BinauralPresetName = 'delta' | 'theta' | 'alpha' | 'beta' | 'custom';
+
+export interface BinauralPreset {
+  name: BinauralPresetName;
+  label: string;
+  beatFrequency: number; // Hz
+  carrierFrequency: number; // Hz
+  description: string;
+}
+
+// Electrode contact quality (from Muse horseshoe indicator)
+export type ElectrodeQuality = 'good' | 'medium' | 'poor' | 'off';
+
+export interface ElectrodeStatus {
+  tp9: ElectrodeQuality;  // Left ear
+  af7: ElectrodeQuality;  // Left forehead
+  af8: ElectrodeQuality;  // Right forehead
+  tp10: ElectrodeQuality; // Right ear
+}
+
 export type AppScreen = 'setup' | 'session' | 'summary';
 
 export interface SessionStats {
   totalLength: number;
   longestStreak: number;
   avgCoherence: number;
-  quietPowerPercent: number;
+  flowStatePercent: number;
   achievementScore: string;
 }

@@ -2,19 +2,22 @@
 
 import { motion } from 'framer-motion';
 import { CoherenceGraph } from './CoherenceGraph';
+import { ElectrodeStatus } from './ElectrodeStatus';
+import type { ElectrodeStatus as ElectrodeStatusType } from '../types';
 
 interface ActiveSessionProps {
   // Session data
   duration: number;
   coherenceHistory: number[];
   currentCoherence: number;
-  coherenceZone: 'quiet' | 'stabilizing' | 'noise';
-  quietPowerActive: boolean;
+  coherenceZone: 'flow' | 'stabilizing' | 'noise';
+  flowStateActive: boolean;
   currentStreak: number;
 
   // Muse state
   museConnected: boolean;
   touching: boolean;
+  electrodeStatus: ElectrodeStatusType;
 
   // Audio
   entrainmentEnabled: boolean;
@@ -30,10 +33,11 @@ export function ActiveSession({
   coherenceHistory,
   currentCoherence,
   coherenceZone,
-  quietPowerActive,
+  flowStateActive,
   currentStreak,
   museConnected,
   touching,
+  electrodeStatus,
   entrainmentEnabled,
   onEntrainmentToggle,
   isRewardPlaying,
@@ -71,6 +75,11 @@ export function ActiveSession({
         </div>
       </header>
 
+      {/* Electrode Status Bar */}
+      <div className="electrode-bar">
+        <ElectrodeStatus status={electrodeStatus} compact />
+      </div>
+
       {/* Main Content - Coherence Graph */}
       <main className="session-main">
         <CoherenceGraph
@@ -81,17 +90,17 @@ export function ActiveSession({
           isActive={true}
         />
 
-        {/* Quiet Power Indicator */}
-        {quietPowerActive && (
+        {/* Flow State Indicator */}
+        {flowStateActive && (
           <motion.div
-            className="quiet-power-indicator"
+            className="flow-state-indicator"
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
           >
-            <div className="qp-glow" />
-            <span className="qp-text">Quiet Power</span>
-            <span className="qp-streak">{formatTime(currentStreak)}</span>
+            <div className="flow-glow" />
+            <span className="flow-text">Flow State</span>
+            <span className="flow-streak">{formatTime(currentStreak)}</span>
           </motion.div>
         )}
 

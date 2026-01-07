@@ -688,8 +688,8 @@ body {
   font-family: 'SF Mono', 'Fira Code', monospace;
 }
 
-/* Quiet Power Indicator */
-.quiet-power-indicator {
+/* Flow State Indicator */
+.flow-state-indicator {
   position: absolute;
   top: 20px;
   left: 50%;
@@ -704,7 +704,7 @@ body {
   backdrop-filter: blur(8px);
 }
 
-.qp-glow {
+.flow-glow {
   position: absolute;
   inset: -4px;
   background: var(--accent-glow);
@@ -713,13 +713,13 @@ body {
   z-index: -1;
 }
 
-.qp-text {
+.flow-text {
   font-size: 14px;
   font-weight: 600;
   color: var(--accent-teal);
 }
 
-.qp-streak {
+.flow-streak {
   font-size: 12px;
   color: var(--text-secondary);
   font-family: 'SF Mono', 'Fira Code', monospace;
@@ -901,4 +901,297 @@ body {
   50% {
     box-shadow: 0 0 20px var(--accent-glow-strong);
   }
+}
+
+/* ============ Electrode Status ============ */
+
+.electrode-status {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.electrode-status.compact {
+  padding: 12px 16px;
+}
+
+.electrode-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.electrode-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.electrode-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: var(--radius-lg);
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid;
+}
+
+.electrode-grid {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.electrode-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.electrode-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.electrode-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.electrode-bar {
+  padding: 8px 20px;
+  background: var(--bg-card);
+}
+
+/* ============ Detection Settings ============ */
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.setting-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.setting-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.setting-value {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  color: var(--accent-teal);
+  font-weight: 500;
+}
+
+.setting-slider {
+  width: 100%;
+  appearance: none;
+  height: 6px;
+  background: var(--bg-primary);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.setting-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: var(--accent-teal);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.setting-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* ============ Binaural Settings ============ */
+
+.binaural-settings {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--bg-primary);
+}
+
+.subsection-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.preset-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.preset-btn:hover:not(:disabled) {
+  background: var(--bg-primary);
+}
+
+.preset-btn.active {
+  border-color: var(--accent-teal);
+  background: rgba(79, 209, 197, 0.1);
+}
+
+.preset-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.preset-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.preset-freq {
+  font-size: 12px;
+  color: var(--accent-teal);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.preset-desc {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.custom-freq {
+  margin-top: 12px;
+}
+
+/* ============ Enhanced Coherence Graph ============ */
+
+.current-state-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--radius-lg);
+  border: 1px solid;
+  margin-bottom: 12px;
+}
+
+.state-icon {
+  display: flex;
+  align-items: center;
+}
+
+.state-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.state-desc {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.zone-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.zone-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-left: 3px solid transparent;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  transition: all 0.3s ease;
+}
+
+.zone-label.active {
+  background: var(--zone-quiet);
+}
+
+.zone-icon {
+  display: flex;
+  align-items: center;
+  opacity: 0.7;
+}
+
+.zone-label.active .zone-icon {
+  opacity: 1;
+}
+
+.zone-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.zone-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.zone-label.active .zone-name {
+  color: var(--text-primary);
+}
+
+.zone-desc {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.zone-label.active .zone-desc {
+  color: var(--text-secondary);
+}
+
+/* ============ Graph Container Updates ============ */
+
+.graph-container {
+  flex: 1;
+  position: relative;
+  background: linear-gradient(
+    to bottom,
+    rgba(79, 209, 197, 0.08) 0%,
+    rgba(79, 209, 197, 0.08) 30%,
+    rgba(251, 191, 36, 0.06) 30%,
+    rgba(251, 191, 36, 0.06) 60%,
+    rgba(248, 113, 113, 0.04) 60%,
+    rgba(248, 113, 113, 0.04) 100%
+  );
+  border-radius: var(--radius-md);
+  overflow: hidden;
 }

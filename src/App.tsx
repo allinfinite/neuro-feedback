@@ -1,6 +1,6 @@
 // Neuro-Somatic Feedback App - Main Application
 
-import { useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useMuse } from './hooks/useMuse';
 import { useAudio } from './hooks/useAudio';
@@ -8,7 +8,14 @@ import { useSession } from './hooks/useSession';
 import { SessionSetup } from './components/SessionSetup';
 import { ActiveSession } from './components/ActiveSession';
 import { SessionSummary } from './components/SessionSummary';
+import type { ThresholdSettings } from './types';
 import './App.css';
+
+// Default threshold settings
+const DEFAULT_THRESHOLD_SETTINGS: ThresholdSettings = {
+  coherenceThreshold: 0.7,
+  timeThreshold: 5000,
+};
 
 function App() {
   // Hooks
@@ -16,20 +23,28 @@ function App() {
   const audio = useAudio();
   const session = useSession();
 
-  // Handle quiet power state changes for rewards
+  // Threshold settings state
+  const [thresholdSettings, setThresholdSettings] = useState<ThresholdSettings>(DEFAULT_THRESHOLD_SETTINGS);
+
+  // Apply threshold settings to muse detector when they change
+  useEffect(() => {
+    muse.setThresholdSettings(thresholdSettings);
+  }, [thresholdSettings, muse.setThresholdSettings]);
+
+  // Handle flow state changes for rewards
   useEffect(() => {
     if (session.isSessionActive) {
-      session.updateQuietPowerState(muse.quietPower.isActive, muse.coherence);
+      session.updateFlowState(muse.flowState.isActive, muse.coherence);
 
-      // Trigger reward on quiet power
-      if (muse.quietPower.isActive && !audio.isRewardPlaying) {
+      // Trigger reward on flow state
+      if (muse.flowState.isActive && !audio.isRewardPlaying) {
         audio.startReward();
-      } else if (!muse.quietPower.isActive && audio.isRewardPlaying) {
+      } else if (!muse.flowState.isActive && audio.isRewardPlaying) {
         audio.stopReward();
       }
     }
   }, [
-    muse.quietPower.isActive,
+    muse.flowState.isActive,
     muse.coherence,
     session.isSessionActive,
     audio.isRewardPlaying,
@@ -71,6 +86,7 @@ function App() {
             museConnected={muse.state.connected}
             museDeviceName={muse.state.deviceName}
             connectionQuality={muse.state.connectionQuality}
+            electrodeStatus={muse.electrodeStatus}
             onConnectBluetooth={muse.connectBluetooth}
             onConnectOSC={muse.connectOSC}
             onDisconnect={muse.disconnect}
@@ -80,9 +96,16 @@ function App() {
             entrainmentType={audio.entrainmentType}
             entrainmentEnabled={audio.entrainmentEnabled}
             entrainmentVolume={audio.entrainmentVolume}
+            binauralPreset={audio.binauralPreset}
+            binauralBeatFreq={audio.binauralBeatFreq}
             onEntrainmentTypeChange={audio.setEntrainmentType}
             onEntrainmentEnabledChange={audio.setEntrainmentEnabled}
             onEntrainmentVolumeChange={audio.setEntrainmentVolume}
+            onBinauralPresetChange={audio.setBinauralPreset}
+            onBinauralBeatFreqChange={audio.setBinauralBeatFreq}
+            // Threshold settings
+            thresholdSettings={thresholdSettings}
+            onThresholdSettingsChange={setThresholdSettings}
             // User
             currentUser={session.currentUser}
             users={session.users}
@@ -100,10 +123,11 @@ function App() {
             coherenceHistory={session.coherenceHistory}
             currentCoherence={muse.coherence}
             coherenceZone={muse.coherenceZone}
-            quietPowerActive={muse.quietPower.isActive}
+            flowStateActive={muse.flowState.isActive}
             currentStreak={session.currentStreak}
             museConnected={muse.state.connected}
             touching={muse.state.touching}
+            electrodeStatus={muse.electrodeStatus}
             entrainmentEnabled={audio.entrainmentEnabled}
             onEntrainmentToggle={handleEntrainmentToggle}
             isRewardPlaying={audio.isRewardPlaying}

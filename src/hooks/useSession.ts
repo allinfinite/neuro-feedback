@@ -16,7 +16,7 @@ export interface UseSessionReturn {
   isSessionActive: boolean;
   sessionStartTime: number | null;
   sessionDuration: number;
-  quietPowerTime: number;
+  flowStateTime: number;
   longestStreak: number;
   currentStreak: number;
   coherenceHistory: number[];
@@ -24,7 +24,7 @@ export interface UseSessionReturn {
   // Session controls
   startSession: () => void;
   endSession: () => Session | null;
-  updateQuietPowerState: (isActive: boolean, coherence: number) => void;
+  updateFlowState: (isActive: boolean, coherence: number) => void;
 
   // Completed session
   lastSession: Session | null;
@@ -49,7 +49,7 @@ export function useSession(): UseSessionReturn {
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
   const [sessionDuration, setSessionDuration] = useState(0);
-  const [quietPowerTime, setQuietPowerTime] = useState(0);
+  const [flowStateTime, setFlowStateTime] = useState(0);
   const [longestStreak, setLongestStreak] = useState(0);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [coherenceHistory, setCoherenceHistory] = useState<number[]>([]);
@@ -62,7 +62,7 @@ export function useSession(): UseSessionReturn {
   const [screen, setScreen] = useState<AppScreen>('setup');
 
   // Refs for tracking
-  const quietPowerStartRef = useRef<number | null>(null);
+  const flowStateStartRef = useRef<number | null>(null);
   const lastCoherenceTimeRef = useRef<number>(0);
   const durationIntervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
@@ -108,12 +108,12 @@ export function useSession(): UseSessionReturn {
     const now = Date.now();
     setSessionStartTime(now);
     setSessionDuration(0);
-    setQuietPowerTime(0);
+    setFlowStateTime(0);
     setLongestStreak(0);
     setCurrentStreak(0);
     setCoherenceHistory([]);
     setIsSessionActive(true);
-    quietPowerStartRef.current = null;
+    flowStateStartRef.current = null;
     lastCoherenceTimeRef.current = now;
     setScreen('session');
   }, []);
@@ -138,7 +138,7 @@ export function useSession(): UseSessionReturn {
       startTime: new Date(sessionStartTime).toISOString(),
       endTime: new Date(endTime).toISOString(),
       duration,
-      quietPowerTime,
+      flowStateTime,
       longestStreak,
       avgCoherence,
       coherenceHistory,
@@ -154,12 +154,12 @@ export function useSession(): UseSessionReturn {
     isSessionActive,
     sessionStartTime,
     currentUser,
-    quietPowerTime,
+    flowStateTime,
     longestStreak,
     coherenceHistory,
   ]);
 
-  const updateQuietPowerState = useCallback(
+  const updateFlowState = useCallback(
     (isActive: boolean, coherence: number) => {
       if (!isSessionActive) return;
 
@@ -172,24 +172,24 @@ export function useSession(): UseSessionReturn {
       }
 
       if (isActive) {
-        // In quiet power state
-        if (quietPowerStartRef.current === null) {
-          quietPowerStartRef.current = now;
+        // In flow state
+        if (flowStateStartRef.current === null) {
+          flowStateStartRef.current = now;
         }
 
-        const streak = now - quietPowerStartRef.current;
+        const streak = now - flowStateStartRef.current;
         setCurrentStreak(streak);
 
         if (streak > longestStreak) {
           setLongestStreak(streak);
         }
       } else {
-        // Not in quiet power state
-        if (quietPowerStartRef.current !== null) {
-          // Add time spent in quiet power
-          const timeSpent = now - quietPowerStartRef.current;
-          setQuietPowerTime((prev) => prev + timeSpent);
-          quietPowerStartRef.current = null;
+        // Not in flow state
+        if (flowStateStartRef.current !== null) {
+          // Add time spent in flow state
+          const timeSpent = now - flowStateStartRef.current;
+          setFlowStateTime((prev) => prev + timeSpent);
+          flowStateStartRef.current = null;
         }
         setCurrentStreak(0);
       }
@@ -225,7 +225,7 @@ export function useSession(): UseSessionReturn {
     isSessionActive,
     sessionStartTime,
     sessionDuration,
-    quietPowerTime,
+    flowStateTime,
     longestStreak,
     currentStreak,
     coherenceHistory,
@@ -233,7 +233,7 @@ export function useSession(): UseSessionReturn {
     // Session controls
     startSession,
     endSession,
-    updateQuietPowerState,
+    updateFlowState,
 
     // Completed session
     lastSession,

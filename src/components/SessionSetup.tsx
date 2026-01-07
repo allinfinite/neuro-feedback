@@ -3,13 +3,16 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ConnectionStatus } from './ConnectionStatus';
-import type { EntrainmentType, User } from '../types';
+import { ElectrodeStatus } from './ElectrodeStatus';
+import { BINAURAL_PRESETS } from '../hooks/useAudio';
+import type { EntrainmentType, User, BinauralPresetName, ElectrodeStatus as ElectrodeStatusType, ThresholdSettings } from '../types';
 
 interface SessionSetupProps {
   // Connection
   museConnected: boolean;
   museDeviceName: string | null;
   connectionQuality: number;
+  electrodeStatus: ElectrodeStatusType;
   onConnectBluetooth: () => void;
   onConnectOSC: () => void;
   onDisconnect: () => void;
@@ -20,9 +23,17 @@ interface SessionSetupProps {
   entrainmentType: EntrainmentType;
   entrainmentEnabled: boolean;
   entrainmentVolume: number;
+  binauralPreset: BinauralPresetName;
+  binauralBeatFreq: number;
   onEntrainmentTypeChange: (type: EntrainmentType) => void;
   onEntrainmentEnabledChange: (enabled: boolean) => void;
   onEntrainmentVolumeChange: (volume: number) => void;
+  onBinauralPresetChange: (preset: BinauralPresetName) => void;
+  onBinauralBeatFreqChange: (freq: number) => void;
+
+  // Threshold settings
+  thresholdSettings: ThresholdSettings;
+  onThresholdSettingsChange: (settings: ThresholdSettings) => void;
 
   // User
   currentUser: User | null;
@@ -38,6 +49,7 @@ export function SessionSetup({
   museConnected,
   museDeviceName,
   connectionQuality,
+  electrodeStatus,
   onConnectBluetooth,
   onConnectOSC,
   onDisconnect,
@@ -46,9 +58,15 @@ export function SessionSetup({
   entrainmentType,
   entrainmentEnabled,
   entrainmentVolume,
+  binauralPreset,
+  binauralBeatFreq,
   onEntrainmentTypeChange,
   onEntrainmentEnabledChange,
   onEntrainmentVolumeChange,
+  onBinauralPresetChange,
+  onBinauralBeatFreqChange,
+  thresholdSettings,
+  onThresholdSettingsChange,
   currentUser,
   users,
   onCreateUser,
@@ -91,6 +109,13 @@ export function SessionSetup({
           isBluetoothAvailable={isBluetoothAvailable}
           error={connectionError}
         />
+
+        {/* Electrode Status (show when connected) */}
+        {museConnected && (
+          <section className="setup-section">
+            <ElectrodeStatus status={electrodeStatus} />
+          </section>
+        )}
 
         {/* User Selection */}
         <section className="setup-section">
@@ -148,6 +173,52 @@ export function SessionSetup({
           )}
         </section>
 
+        {/* Detection Settings */}
+        <section className="setup-section">
+          <h2>Detection Settings</h2>
+          <div className="settings-group">
+            <div className="setting-row">
+              <label className="setting-label">
+                <span>Coherence Threshold</span>
+                <span className="setting-value">{Math.round(thresholdSettings.coherenceThreshold * 100)}%</span>
+              </label>
+              <input
+                type="range"
+                min="0.5"
+                max="0.9"
+                step="0.05"
+                value={thresholdSettings.coherenceThreshold}
+                onChange={(e) => onThresholdSettingsChange({
+                  ...thresholdSettings,
+                  coherenceThreshold: parseFloat(e.target.value)
+                })}
+                className="setting-slider"
+              />
+              <p className="setting-hint">Higher threshold = stricter Flow State detection</p>
+            </div>
+
+            <div className="setting-row">
+              <label className="setting-label">
+                <span>Time Threshold</span>
+                <span className="setting-value">{thresholdSettings.timeThreshold / 1000}s</span>
+              </label>
+              <input
+                type="range"
+                min="1000"
+                max="10000"
+                step="1000"
+                value={thresholdSettings.timeThreshold}
+                onChange={(e) => onThresholdSettingsChange({
+                  ...thresholdSettings,
+                  timeThreshold: parseInt(e.target.value)
+                })}
+                className="setting-slider"
+              />
+              <p className="setting-hint">How long to sustain coherence before entering Flow State</p>
+            </div>
+          </div>
+        </section>
+
         {/* Guidance Audio */}
         <section className="setup-section">
           <div className="section-header">
@@ -186,7 +257,7 @@ export function SessionSetup({
                   onChange={() => onEntrainmentTypeChange('isochronic')}
                   disabled={!entrainmentEnabled}
                 />
-                <span className="radio-label">Manual Tones (Isochronic)</span>
+                <span className="radio-label">Isochronic Tones</span>
               </label>
 
               <label className="radio-option">
@@ -201,6 +272,44 @@ export function SessionSetup({
                 <span className="radio-label">None</span>
               </label>
             </div>
+
+            {/* Binaural Presets (shown when binaural is selected) */}
+            {entrainmentType === 'binaural' && (
+              <div className="binaural-settings">
+                <h3 className="subsection-title">Binaural Preset</h3>
+                <div className="preset-grid">
+                  {(['delta', 'theta', 'alpha', 'beta'] as const).map((preset) => (
+                    <button
+                      key={preset}
+                      className={`preset-btn ${binauralPreset === preset ? 'active' : ''}`}
+                      onClick={() => onBinauralPresetChange(preset)}
+                      disabled={!entrainmentEnabled}
+                    >
+                      <span className="preset-name">{BINAURAL_PRESETS[preset].label}</span>
+                      <span className="preset-freq">{BINAURAL_PRESETS[preset].beatFrequency} Hz</span>
+                      <span className="preset-desc">{BINAURAL_PRESETS[preset].description}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="custom-freq">
+                  <label className="setting-label">
+                    <span>Custom Frequency</span>
+                    <span className="setting-value">{binauralBeatFreq} Hz</span>
+                  </label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="40"
+                    step="1"
+                    value={binauralBeatFreq}
+                    onChange={(e) => onBinauralBeatFreqChange(parseInt(e.target.value))}
+                    disabled={!entrainmentEnabled}
+                    className="setting-slider"
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="volume-control">
               <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">

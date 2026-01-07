@@ -101,15 +101,15 @@ export function SessionSummary({
     pdf.text(`Time: ${new Date(session.startTime).toLocaleTimeString()}`, margin, y);
     y += 15;
 
-    // Main stat - Quiet Power percentage
+    // Main stat - Flow State percentage
     pdf.setFontSize(48);
     pdf.setTextColor(79, 209, 197);
-    pdf.text(`${Math.round(stats.quietPowerPercent)}%`, pageWidth / 2, y, { align: 'center' });
+    pdf.text(`${Math.round(stats.flowStatePercent)}%`, pageWidth / 2, y, { align: 'center' });
     y += 10;
 
     pdf.setFontSize(14);
     pdf.setTextColor(150, 150, 150);
-    pdf.text('Time in Quiet Power', pageWidth / 2, y, { align: 'center' });
+    pdf.text('Time in Flow State', pageWidth / 2, y, { align: 'center' });
     y += 20;
 
     // Stats grid
@@ -229,7 +229,7 @@ export function SessionSummary({
               strokeDasharray={339.292}
               initial={{ strokeDashoffset: 339.292 }}
               animate={{
-                strokeDashoffset: 339.292 * (1 - stats.quietPowerPercent / 100),
+                strokeDashoffset: 339.292 * (1 - stats.flowStatePercent / 100),
               }}
               transition={{ duration: 1.5, ease: 'easeOut' }}
             />
@@ -241,9 +241,9 @@ export function SessionSummary({
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5 }}
             >
-              {Math.round(stats.quietPowerPercent)}%
+              {Math.round(stats.flowStatePercent)}%
             </motion.span>
-            <span className="label">Time in Quiet Power</span>
+            <span className="label">Time in Flow State</span>
           </div>
         </div>
 

@@ -1,36 +1,36 @@
-// Quiet Power State Detection
+// Flow State Detection
 // Detects when: Beta < Alpha, low variance, sustained 5+ seconds
 
-import type { BrainwaveBands, QuietPowerState } from '../types';
+import type { BrainwaveBands, FlowState } from '../types';
 
-export interface QuietPowerConfig {
+export interface FlowStateConfig {
   sustainedMs: number; // How long conditions must be met (default 5000ms)
   varianceThreshold: number; // Maximum variance allowed (default 0.15)
   noiseThreshold: number; // Maximum noise level (default 0.3)
   betaAlphaRatioThreshold: number; // Beta/Alpha must be below this (default 1.0)
 }
 
-const DEFAULT_CONFIG: QuietPowerConfig = {
+const DEFAULT_CONFIG: FlowStateConfig = {
   sustainedMs: 5000,
   varianceThreshold: 0.15,
   noiseThreshold: 0.3,
   betaAlphaRatioThreshold: 1.0,
 };
 
-export class QuietPowerDetector {
-  private config: QuietPowerConfig;
+export class FlowStateDetector {
+  private config: FlowStateConfig;
   private conditionMetSince: number | null = null;
   private recentAlphaValues: number[] = [];
   private recentBetaValues: number[] = [];
   private historyLength = 30; // ~1 second of data at 30fps
 
   // Callbacks
-  onEnterQuietPower?: () => void;
-  onExitQuietPower?: () => void;
+  onEnterFlowState?: () => void;
+  onExitFlowState?: () => void;
 
   private _isActive = false;
 
-  constructor(config: Partial<QuietPowerConfig> = {}) {
+  constructor(config: Partial<FlowStateConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
@@ -38,7 +38,7 @@ export class QuietPowerDetector {
    * Update with new brainwave data
    * Call this every frame with smoothed band values
    */
-  update(bands: BrainwaveBands, motionLevel: number = 0): QuietPowerState {
+  update(bands: BrainwaveBands, motionLevel: number = 0): FlowState {
     const now = Date.now();
 
     // Store recent values for variance calculation
@@ -72,7 +72,7 @@ export class QuietPowerDetector {
       // Conditions broken - reset timer
       if (this._isActive) {
         this._isActive = false;
-        this.onExitQuietPower?.();
+        this.onExitFlowState?.();
       }
       this.conditionMetSince = null;
     }
@@ -82,7 +82,7 @@ export class QuietPowerDetector {
 
     if (sustainedMs >= this.config.sustainedMs && !this._isActive) {
       this._isActive = true;
-      this.onEnterQuietPower?.();
+      this.onEnterFlowState?.();
     }
 
     return {
@@ -125,14 +125,21 @@ export class QuietPowerDetector {
   /**
    * Update configuration
    */
-  setConfig(config: Partial<QuietPowerConfig>): void {
+  setConfig(config: Partial<FlowStateConfig>): void {
     this.config = { ...this.config, ...config };
+  }
+
+  /**
+   * Get current configuration
+   */
+  getConfig(): FlowStateConfig {
+    return { ...this.config };
   }
 }
 
 /**
  * Calculate coherence score (0-1) based on brainwave data
- * Higher score = more coherent/stable state approaching Quiet Power
+ * Higher score = more coherent/stable state approaching Flow State
  */
 export function calculateCoherence(bands: BrainwaveBands, variance: number): number {
   // Alpha prominence contributes positively
@@ -154,8 +161,8 @@ export function calculateCoherence(bands: BrainwaveBands, variance: number): num
 /**
  * Determine which zone the current coherence falls into
  */
-export function getCoherenceZone(coherence: number): 'quiet' | 'stabilizing' | 'noise' {
-  if (coherence >= 0.7) return 'quiet';
+export function getCoherenceZone(coherence: number): 'flow' | 'stabilizing' | 'noise' {
+  if (coherence >= 0.7) return 'flow';
   if (coherence >= 0.4) return 'stabilizing';
   return 'noise';
 }

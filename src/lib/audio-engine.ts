@@ -1,7 +1,39 @@
 // Audio Engine for Entrainment and Rewards
 // Handles binaural beats, isochronic tones, and vibroacoustic rewards
 
-import type { EntrainmentType } from '../types';
+import type { EntrainmentType, BinauralPreset, BinauralPresetName } from '../types';
+
+// Binaural beat presets for different brain states
+export const BINAURAL_PRESETS: Record<Exclude<BinauralPresetName, 'custom'>, BinauralPreset> = {
+  delta: {
+    name: 'delta',
+    label: 'Delta',
+    beatFrequency: 2,
+    carrierFrequency: 200,
+    description: 'Deep Sleep (0.5-4 Hz)',
+  },
+  theta: {
+    name: 'theta',
+    label: 'Theta',
+    beatFrequency: 6,
+    carrierFrequency: 200,
+    description: 'Deep Meditation (4-8 Hz)',
+  },
+  alpha: {
+    name: 'alpha',
+    label: 'Alpha',
+    beatFrequency: 10,
+    carrierFrequency: 200,
+    description: 'Relaxed Focus (8-13 Hz)',
+  },
+  beta: {
+    name: 'beta',
+    label: 'Beta',
+    beatFrequency: 20,
+    carrierFrequency: 200,
+    description: 'Alert Focus (13-30 Hz)',
+  },
+};
 
 export interface AudioEngineConfig {
   entrainmentType: EntrainmentType;
@@ -371,6 +403,42 @@ export class AudioEngine {
         this.ctx.currentTime,
         0.5
       );
+    }
+  }
+
+  /**
+   * Set binaural carrier frequency (Hz)
+   */
+  setBinauralCarrierFreq(freq: number): void {
+    this.config.binauralCarrierFreq = freq;
+    if (this.ctx) {
+      if (this.binauralLeft) {
+        this.binauralLeft.frequency.setTargetAtTime(freq, this.ctx.currentTime, 0.5);
+      }
+      if (this.binauralRight) {
+        this.binauralRight.frequency.setTargetAtTime(
+          freq + this.config.binauralBeatFreq,
+          this.ctx.currentTime,
+          0.5
+        );
+      }
+    }
+  }
+
+  /**
+   * Apply a binaural preset
+   */
+  applyBinauralPreset(presetName: Exclude<BinauralPresetName, 'custom'>): void {
+    const preset = BINAURAL_PRESETS[presetName];
+    if (preset) {
+      this.config.binauralBeatFreq = preset.beatFrequency;
+      this.config.binauralCarrierFreq = preset.carrierFrequency;
+      
+      // If binaural is currently playing, update the frequencies
+      if (this.isEntrainmentPlaying && this.config.entrainmentType === 'binaural') {
+        this.setBinauralCarrierFreq(preset.carrierFrequency);
+        this.setBinauralBeatFreq(preset.beatFrequency);
+      }
     }
   }
 
