@@ -142,17 +142,38 @@ export class FlowStateDetector {
  * Higher score = more coherent/stable state approaching Flow State
  */
 export function calculateCoherence(bands: BrainwaveBands, variance: number): number {
-  // Alpha prominence contributes positively
-  const alphaProm = bands.alpha / (bands.beta + bands.gamma + 0.01);
+  const { alpha, beta, gamma, theta, delta } = bands;
+  
+  // Check if we have valid signal (not all zeros)
+  const totalPower = alpha + beta + gamma + theta + delta;
+  if (totalPower < 0.01) {
+    // No signal - return a default low-mid value
+    return 0.3;
+  }
 
-  // Low variance contributes positively
-  const stabilityScore = Math.max(0, 1 - variance * 5);
+  // Alpha prominence: higher alpha relative to high-frequency bands is good
+  // Normalize alpha against total to get relative power
+  const alphaRelative = alpha / totalPower;
+  const alphaScore = Math.min(1, alphaRelative * 3); // Scale up since alpha is typically 0.1-0.3
 
-  // Beta/Alpha ratio (lower is better)
-  const ratioScore = Math.max(0, 1 - bands.beta / (bands.alpha + 0.01));
+  // Beta/Alpha ratio: lower is better (less mental activity)
+  const betaAlphaRatio = alpha > 0.01 ? beta / alpha : 2;
+  const ratioScore = Math.max(0, Math.min(1, 1.5 - betaAlphaRatio));
 
-  // Combine scores
-  const coherence = (alphaProm * 0.4 + stabilityScore * 0.3 + ratioScore * 0.3);
+  // Theta contribution: moderate theta is associated with relaxation
+  const thetaRelative = theta / totalPower;
+  const thetaScore = Math.min(1, thetaRelative * 2.5);
+
+  // Stability score from variance (lower variance = more coherent)
+  const stabilityScore = Math.max(0, 1 - Math.sqrt(variance) * 3);
+
+  // Combine scores with weights
+  const coherence = (
+    alphaScore * 0.35 +
+    ratioScore * 0.25 +
+    thetaScore * 0.2 +
+    stabilityScore * 0.2
+  );
 
   // Normalize to 0-1
   return Math.max(0, Math.min(1, coherence));

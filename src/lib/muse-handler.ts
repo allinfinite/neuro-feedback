@@ -64,8 +64,8 @@ export class MuseHandler {
   private _meditationIndex = 0;
   private _focusIndex = 0;
 
-  // Smoothing factor
-  smoothingFactor = 0.85;
+  // Smoothing factor (lower = more responsive, higher = more stable)
+  smoothingFactor = 0.7;
 
   // OSC connection
   private osc: OSC | null = null;
@@ -81,6 +81,10 @@ export class MuseHandler {
   // FFT processor
   private fft: FFTProcessor;
   private eegBuffers: number[][] = [[], [], [], []];
+  
+  // Electrode signal quality tracking (for Bluetooth)
+  private eegAmplitudes: number[] = [0, 0, 0, 0];
+  private eegVariances: number[] = [0, 0, 0, 0];
 
   // Event callbacks
   callbacks: MuseEventCallbacks = {};
@@ -202,10 +206,66 @@ export class MuseHandler {
       this.eegBuffers[channel].shift();
     }
 
+    // Update electrode quality from signal characteristics
+    this.updateBluetoothElectrodeQuality(channel, reading.samples);
+
     // Process when we have enough samples (only on channel 0)
     if (channel === 0 && this.eegBuffers[0].length >= FFT_SIZE) {
       this.processBluetoothFFT();
     }
+  }
+
+  /**
+   * Derive electrode quality from EEG signal characteristics (for Bluetooth)
+   */
+  private updateBluetoothElectrodeQuality(channel: number, samples: number[]): void {
+    if (samples.length === 0) return;
+
+    // Filter out NaN/Infinity values
+    const validSamples = samples.filter(s => isFinite(s) && !isNaN(s));
+    if (validSamples.length === 0) {
+      this._electrodeQuality[channel] = 4; // off
+      return;
+    }
+
+    // Calculate mean amplitude (absolute)
+    const mean = validSamples.reduce((a, b) => a + b, 0) / validSamples.length;
+    const absAmplitude = validSamples.reduce((a, b) => a + Math.abs(b - mean), 0) / validSamples.length;
+    
+    // Calculate variance
+    const variance = validSamples.reduce((a, b) => a + (b - mean) ** 2, 0) / validSamples.length;
+    
+    // Smooth the amplitude and variance estimates
+    this.eegAmplitudes[channel] = this.eegAmplitudes[channel] * 0.9 + absAmplitude * 0.1;
+    this.eegVariances[channel] = this.eegVariances[channel] * 0.9 + variance * 0.1;
+
+    // Determine quality based on signal characteristics
+    // Good signal: reasonable amplitude (10-500 µV typical), variance present
+    // Poor signal: very low or very high amplitude, or near-zero variance (flat line)
+    const amp = this.eegAmplitudes[channel];
+    const vari = this.eegVariances[channel];
+
+    let quality: number;
+    if (amp < 1 || vari < 1) {
+      // Very weak or flat signal - no contact
+      quality = 4;
+    } else if (amp > 1000 || vari > 100000) {
+      // Extremely noisy - poor contact
+      quality = 3;
+    } else if (amp > 500 || vari > 50000) {
+      // Somewhat noisy - medium contact
+      quality = 2;
+    } else {
+      // Good signal range
+      quality = 1;
+    }
+
+    this._electrodeQuality[channel] = quality;
+
+    // Update overall connection quality
+    const avgQuality = this._electrodeQuality.reduce((sum, v) => sum + (v === 1 ? 1 : v === 2 ? 0.5 : 0), 0) / 4;
+    this._connectionQuality = avgQuality;
+    this._touching = avgQuality > 0.1;
   }
 
   /**
@@ -282,6 +342,9 @@ export class MuseHandler {
     this._deviceName = null;
     this.isInitialized = false;
     this.eegBuffers = [[], [], [], []];
+    this._electrodeQuality = [4, 4, 4, 4];
+    this.eegAmplitudes = [0, 0, 0, 0];
+    this.eegVariances = [0, 0, 0, 0];
 
     this.callbacks.onDisconnect?.();
   }
@@ -500,6 +563,9 @@ export class MuseHandler {
     this._deviceName = null;
     this.isInitialized = false;
     this.eegBuffers = [[], [], [], []];
+    this._electrodeQuality = [4, 4, 4, 4];
+    this.eegAmplitudes = [0, 0, 0, 0];
+    this.eegVariances = [0, 0, 0, 0];
   }
 
   /**

@@ -971,6 +971,64 @@ body {
   background: var(--bg-card);
 }
 
+/* ============ Live Brainwave Bars ============ */
+
+.brainwave-bars {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px;
+  background: var(--bg-card);
+  border-top: 1px solid var(--bg-primary);
+}
+
+.band-bar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.band-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.band-bar .band-fill {
+  height: 6px;
+  border-radius: 3px;
+  width: 0%;
+  min-width: 4px;
+  align-self: stretch;
+}
+
+.band-fill.delta {
+  background: linear-gradient(90deg, #6366f1, #818cf8);
+}
+
+.band-fill.theta {
+  background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+}
+
+.band-fill.alpha {
+  background: linear-gradient(90deg, #4fd1c5, #5eead4);
+}
+
+.band-fill.beta {
+  background: linear-gradient(90deg, #fbbf24, #fcd34d);
+}
+
+.band-fill.gamma {
+  background: linear-gradient(90deg, #f87171, #fca5a5);
+}
+
+.band-value {
+  font-size: 10px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: var(--text-dim);
+}
+
 /* ============ Detection Settings ============ */
 
 .settings-group {

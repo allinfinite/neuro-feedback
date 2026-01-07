@@ -66,6 +66,7 @@ export function useMuse(): UseMuseReturn {
 
   const flowStateDetector = useRef(new FlowStateDetector({}));
   const animationFrameRef = useRef<number | undefined>(undefined);
+  const lastHistoryUpdate = useRef<number>(0);
 
   // Update loop
   useEffect(() => {
@@ -95,15 +96,19 @@ export function useMuse(): UseMuseReturn {
         const coh = calculateCoherence(museState.bandsSmooth, fsState.signalVariance);
         setCoherence(coh);
 
-        // Update history (keep last 300 points ~= 5 min at 1Hz sample)
-        setCoherenceHistory((prev) => {
-          const newHistory = [...prev, coh];
-          // Only add once per second approximately
-          if (newHistory.length > 300) {
-            return newHistory.slice(-300);
-          }
-          return newHistory;
-        });
+        // Update history at ~1Hz (every 1000ms)
+        const now = Date.now();
+        if (now - lastHistoryUpdate.current >= 1000) {
+          lastHistoryUpdate.current = now;
+          setCoherenceHistory((prev) => {
+            const newHistory = [...prev, coh];
+            // Keep last 300 points = 5 minutes at 1Hz
+            if (newHistory.length > 300) {
+              return newHistory.slice(-300);
+            }
+            return newHistory;
+          });
+        }
       }
 
       animationFrameRef.current = requestAnimationFrame(updateLoop);

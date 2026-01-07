@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { CoherenceGraph } from './CoherenceGraph';
 import { ElectrodeStatus } from './ElectrodeStatus';
-import type { ElectrodeStatus as ElectrodeStatusType } from '../types';
+import type { ElectrodeStatus as ElectrodeStatusType, BrainwaveBands } from '../types';
 
 interface ActiveSessionProps {
   // Session data
@@ -18,6 +18,7 @@ interface ActiveSessionProps {
   museConnected: boolean;
   touching: boolean;
   electrodeStatus: ElectrodeStatusType;
+  bands: BrainwaveBands;
 
   // Audio
   entrainmentEnabled: boolean;
@@ -38,6 +39,7 @@ export function ActiveSession({
   museConnected,
   touching,
   electrodeStatus,
+  bands,
   entrainmentEnabled,
   onEntrainmentToggle,
   isRewardPlaying,
@@ -78,6 +80,55 @@ export function ActiveSession({
       {/* Electrode Status Bar */}
       <div className="electrode-bar">
         <ElectrodeStatus status={electrodeStatus} compact />
+      </div>
+
+      {/* Live Brainwave Bars */}
+      <div className="brainwave-bars">
+        <div className="band-bar">
+          <span className="band-label">δ</span>
+          <motion.div 
+            className="band-fill delta" 
+            animate={{ width: `${Math.min(100, bands.delta * 200)}%` }}
+            transition={{ duration: 0.15 }}
+          />
+          <span className="band-value">{(bands.delta * 100).toFixed(0)}%</span>
+        </div>
+        <div className="band-bar">
+          <span className="band-label">θ</span>
+          <motion.div 
+            className="band-fill theta" 
+            animate={{ width: `${Math.min(100, bands.theta * 200)}%` }}
+            transition={{ duration: 0.15 }}
+          />
+          <span className="band-value">{(bands.theta * 100).toFixed(0)}%</span>
+        </div>
+        <div className="band-bar">
+          <span className="band-label">α</span>
+          <motion.div 
+            className="band-fill alpha" 
+            animate={{ width: `${Math.min(100, bands.alpha * 200)}%` }}
+            transition={{ duration: 0.15 }}
+          />
+          <span className="band-value">{(bands.alpha * 100).toFixed(0)}%</span>
+        </div>
+        <div className="band-bar">
+          <span className="band-label">β</span>
+          <motion.div 
+            className="band-fill beta" 
+            animate={{ width: `${Math.min(100, bands.beta * 200)}%` }}
+            transition={{ duration: 0.15 }}
+          />
+          <span className="band-value">{(bands.beta * 100).toFixed(0)}%</span>
+        </div>
+        <div className="band-bar">
+          <span className="band-label">γ</span>
+          <motion.div 
+            className="band-fill gamma" 
+            animate={{ width: `${Math.min(100, bands.gamma * 200)}%` }}
+            transition={{ duration: 0.15 }}
+          />
+          <span className="band-value">{(bands.gamma * 100).toFixed(0)}%</span>
+        </div>
       </div>
 
       {/* Main Content - Coherence Graph */}
