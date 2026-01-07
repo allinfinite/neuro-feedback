@@ -8,6 +8,8 @@ export interface FlowStateConfig {
   varianceThreshold: number; // Maximum variance allowed (default 0.15)
   noiseThreshold: number; // Maximum noise level (default 0.3)
   betaAlphaRatioThreshold: number; // Beta/Alpha must be below this (default 1.0)
+  minSignalPower: number; // Minimum total band power to consider signal valid (default 0.05)
+  minVariance: number; // Minimum variance - too low means no real signal (default 0.001)
 }
 
 const DEFAULT_CONFIG: FlowStateConfig = {
@@ -15,6 +17,8 @@ const DEFAULT_CONFIG: FlowStateConfig = {
   varianceThreshold: 0.15,
   noiseThreshold: 0.3,
   betaAlphaRatioThreshold: 1.0,
+  minSignalPower: 0.05, // Require at least 5% total power
+  minVariance: 0.001, // Require some variance (not flat line)
 };
 
 export class FlowStateDetector {
@@ -38,7 +42,7 @@ export class FlowStateDetector {
    * Update with new brainwave data
    * Call this every frame with smoothed band values
    */
-  update(bands: BrainwaveBands, motionLevel: number = 0): FlowState {
+  update(bands: BrainwaveBands, motionLevel: number = 0, electrodeContactQuality: number = 0): FlowState {
     const now = Date.now();
 
     // Store recent values for variance calculation
@@ -50,6 +54,9 @@ export class FlowStateDetector {
       this.recentBetaValues.shift();
     }
 
+    // Calculate total signal power
+    const totalPower = bands.alpha + bands.beta + bands.gamma + bands.theta + bands.delta;
+
     // Calculate metrics
     const betaAlphaRatio = bands.alpha > 0.01 ? bands.beta / bands.alpha : 10;
     const signalVariance = this.calculateVariance([
@@ -58,8 +65,24 @@ export class FlowStateDetector {
     ]);
     const noiseLevel = motionLevel + bands.gamma * 0.5; // Gamma often indicates noise/artifacts
 
-    // Check all conditions
-    const conditionsMet =
+    // SIGNAL VALIDITY CHECKS:
+    // 1. Must have minimum total signal power (not all zeros)
+    const hasMinPower = totalPower >= this.config.minSignalPower;
+    
+    // 2. Must have some variance (not a flat line / no real signal)
+    const hasMinVariance = signalVariance >= this.config.minVariance;
+    
+    // 3. Must have reasonable electrode contact (at least 50% quality)
+    const hasGoodContact = electrodeContactQuality >= 0.5;
+    
+    // 4. Alpha must be detectable (key indicator of calm state)
+    const hasAlpha = bands.alpha >= 0.02;
+
+    // Signal is valid only if all validity checks pass
+    const signalValid = hasMinPower && hasMinVariance && hasGoodContact && hasAlpha;
+
+    // Check flow state conditions (only if signal is valid)
+    const conditionsMet = signalValid &&
       betaAlphaRatio < this.config.betaAlphaRatioThreshold &&
       signalVariance < this.config.varianceThreshold &&
       noiseLevel < this.config.noiseThreshold;
@@ -69,7 +92,7 @@ export class FlowStateDetector {
         this.conditionMetSince = now;
       }
     } else {
-      // Conditions broken - reset timer
+      // Conditions broken or signal invalid - reset timer
       if (this._isActive) {
         this._isActive = false;
         this.onExitFlowState?.();
@@ -141,14 +164,26 @@ export class FlowStateDetector {
  * Calculate coherence score (0-1) based on brainwave data
  * Higher score = more coherent/stable state approaching Flow State
  */
-export function calculateCoherence(bands: BrainwaveBands, variance: number): number {
+export function calculateCoherence(bands: BrainwaveBands, variance: number, electrodeQuality: number = 1): number {
   const { alpha, beta, gamma, theta, delta } = bands;
   
   // Check if we have valid signal (not all zeros)
   const totalPower = alpha + beta + gamma + theta + delta;
-  if (totalPower < 0.01) {
-    // No signal - return a default low-mid value
-    return 0.3;
+  
+  // SIGNAL VALIDITY: Return low coherence if signal is invalid
+  if (totalPower < 0.05) {
+    // No meaningful signal - return low value
+    return 0.1;
+  }
+  
+  if (electrodeQuality < 0.5) {
+    // Poor electrode contact - signal unreliable
+    return 0.15;
+  }
+  
+  if (alpha < 0.01) {
+    // No alpha detected - not a calm state
+    return 0.2;
   }
 
   // Alpha prominence: higher alpha relative to high-frequency bands is good

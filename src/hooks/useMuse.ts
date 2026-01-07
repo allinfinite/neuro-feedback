@@ -88,12 +88,21 @@ export function useMuse(): UseMuseReturn {
         const motionLevel = Math.abs(museHandler.accX) + Math.abs(museHandler.accY) + Math.abs(museHandler.accZ);
         const normalizedMotion = Math.min(1, motionLevel / 30);
 
-        // Update flow state detector
-        const fsState = flowStateDetector.current.update(museState.bandsSmooth, normalizedMotion);
+        // Get electrode contact quality (0-1 scale)
+        // Quality: 1=good, 2=medium, 3=poor, 4=off
+        // Convert to 0-1 where 1 is best
+        const electrodeQuality = horseshoe.reduce((sum, v) => {
+          if (v === 1) return sum + 1;      // good = 1.0
+          if (v === 2) return sum + 0.5;    // medium = 0.5
+          return sum;                        // poor/off = 0
+        }, 0) / 4;
+
+        // Update flow state detector with electrode quality
+        const fsState = flowStateDetector.current.update(museState.bandsSmooth, normalizedMotion, electrodeQuality);
         setFlowState(fsState);
 
-        // Calculate coherence
-        const coh = calculateCoherence(museState.bandsSmooth, fsState.signalVariance);
+        // Calculate coherence (also considering electrode quality)
+        const coh = calculateCoherence(museState.bandsSmooth, fsState.signalVariance, electrodeQuality);
         setCoherence(coh);
 
         // Update history at ~1Hz (every 1000ms)

@@ -31,21 +31,34 @@ function App() {
     muse.setThresholdSettings(thresholdSettings);
   }, [thresholdSettings, muse.setThresholdSettings]);
 
+  // Check if we have good electrode contact (at least 3 of 4 electrodes good/medium)
+  const hasGoodContact = (() => {
+    const { tp9, af7, af8, tp10 } = muse.electrodeStatus;
+    const goodCount = [tp9, af7, af8, tp10].filter(
+      q => q === 'good' || q === 'medium'
+    ).length;
+    return goodCount >= 3;
+  })();
+
   // Handle flow state changes for rewards
   useEffect(() => {
     if (session.isSessionActive) {
       session.updateFlowState(muse.flowState.isActive, muse.coherence);
 
-      // Trigger reward on flow state
-      if (muse.flowState.isActive && !audio.isRewardPlaying) {
+      // Trigger reward on flow state ONLY if we have good electrode contact
+      const canReward = muse.flowState.isActive && hasGoodContact && muse.state.touching;
+      
+      if (canReward && !audio.isRewardPlaying) {
         audio.startReward();
-      } else if (!muse.flowState.isActive && audio.isRewardPlaying) {
+      } else if ((!canReward || !muse.flowState.isActive) && audio.isRewardPlaying) {
         audio.stopReward();
       }
     }
   }, [
     muse.flowState.isActive,
     muse.coherence,
+    muse.state.touching,
+    hasGoodContact,
     session.isSessionActive,
     audio.isRewardPlaying,
   ]);
