@@ -1096,6 +1096,104 @@ body {
   margin-top: 12px;
 }
 
+/* ============ Isochronic Advanced Panel ============ */
+
+.isochronic-settings {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--bg-primary);
+}
+
+.iso-advanced {
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+}
+
+.iso-advanced-summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.iso-advanced-summary::-webkit-details-marker {
+  display: none;
+}
+
+.iso-advanced-body {
+  padding: 8px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.iso-preset-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.iso-preset-select {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--bg-primary);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.iso-tone-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.iso-tone-row {
+  padding: 10px;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+}
+
+.iso-tone-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.iso-tone-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.toggle.small {
+  width: 32px;
+  height: 18px;
+  margin-left: auto;
+}
+
+.toggle.small .toggle-slider::before {
+  width: 14px;
+  height: 14px;
+}
+
+.iso-tone-remove {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.iso-add-tone {
+  margin-top: 4px;
+  width: 100%;
+  font-size: 13px;
+}
+
 /* ============ Enhanced Coherence Graph ============ */
 
 .current-state-badge {

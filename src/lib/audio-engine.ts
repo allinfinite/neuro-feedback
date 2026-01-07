@@ -1,7 +1,14 @@
 // Audio Engine for Entrainment and Rewards
 // Handles binaural beats, isochronic tones, and vibroacoustic rewards
 
-import type { EntrainmentType, BinauralPreset, BinauralPresetName } from '../types';
+import type {
+  EntrainmentType,
+  BinauralPreset,
+  BinauralPresetName,
+  IsochronicTone,
+  IsochronicPreset,
+  IsochronicPresetName,
+} from '../types';
 
 // Binaural beat presets for different brain states
 export const BINAURAL_PRESETS: Record<Exclude<BinauralPresetName, 'custom'>, BinauralPreset> = {
@@ -35,14 +42,42 @@ export const BINAURAL_PRESETS: Record<Exclude<BinauralPresetName, 'custom'>, Bin
   },
 };
 
+export const ISOCHRONIC_PRESETS: Record<IsochronicPresetName, IsochronicPreset> = {
+  single_focus: {
+    name: 'single_focus',
+    label: 'Single Focus Pulse',
+    description: 'One mid-beta focus pulse',
+    tones: [
+      { carrierFreq: 220, pulseFreq: 14, volume: 0.6, enabled: true },
+    ],
+  },
+  dual_layer_focus: {
+    name: 'dual_layer_focus',
+    label: 'Dual Layer Focus',
+    description: 'Low and mid pulses for deep focus',
+    tones: [
+      { carrierFreq: 200, pulseFreq: 8, volume: 0.4, enabled: true },
+      { carrierFreq: 260, pulseFreq: 16, volume: 0.4, enabled: true },
+    ],
+  },
+  deep_relax: {
+    name: 'deep_relax',
+    label: 'Deep Relax',
+    description: 'Slow theta pulses for relaxation',
+    tones: [
+      { carrierFreq: 180, pulseFreq: 5, volume: 0.5, enabled: true },
+    ],
+  },
+};
+
 export interface AudioEngineConfig {
   entrainmentType: EntrainmentType;
   entrainmentVolume: number;
   rewardVolume: number;
   binauralCarrierFreq: number; // Base frequency for binaural (default 200Hz)
   binauralBeatFreq: number; // Beat frequency (default 10Hz for alpha)
-  isochronicFreq: number; // Isochronic pulse frequency (default 10Hz)
-  isochronicToneFreq: number; // Tone frequency (default 200Hz)
+  // Isochronic configuration now supports multiple tones
+  isochronicTones: IsochronicTone[];
 }
 
 const DEFAULT_CONFIG: AudioEngineConfig = {
@@ -51,8 +86,7 @@ const DEFAULT_CONFIG: AudioEngineConfig = {
   rewardVolume: 0.5,
   binauralCarrierFreq: 200,
   binauralBeatFreq: 10,
-  isochronicFreq: 10,
-  isochronicToneFreq: 200,
+  isochronicTones: [],
 };
 
 export class AudioEngine {
@@ -64,10 +98,14 @@ export class AudioEngine {
   private binauralLeft: OscillatorNode | null = null;
   private binauralRight: OscillatorNode | null = null;
   private binauralMerger: ChannelMergerNode | null = null;
-  private isochronicOsc: OscillatorNode | null = null;
-  private isochronicLfo: OscillatorNode | null = null;
-  private isochronicLfoGain: GainNode | null = null;
-  private isochronicToneGain: GainNode | null = null;
+
+  // Isochronic voices (multiple tones)
+  private isochronicVoices: {
+    osc: OscillatorNode;
+    lfo: OscillatorNode;
+    lfoGain: GainNode;
+    toneGain: GainNode;
+  }[] = [];
 
   // Reward nodes
   private rewardGain: GainNode | null = null;
@@ -192,44 +230,51 @@ export class AudioEngine {
   }
 
   /**
-   * Start isochronic tones
+   * Start isochronic tones (multiple voices)
    */
   private startIsochronic(now: number): void {
     if (!this.ctx || !this.entrainmentGain) return;
 
-    const { isochronicFreq, isochronicToneFreq } = this.config;
+    // Clean up any existing voices
+    this.stopIsochronicVoices();
 
-    // Create tone oscillator
-    this.isochronicOsc = this.ctx.createOscillator();
-    this.isochronicOsc.type = 'sine';
-    this.isochronicOsc.frequency.value = isochronicToneFreq;
+    // Normalize total volume across tones to avoid clipping
+    const activeTones = this.config.isochronicTones.filter((t) => t.enabled && t.volume > 0);
+    if (activeTones.length === 0) return;
 
-    // Create tone gain (for amplitude modulation)
-    this.isochronicToneGain = this.ctx.createGain();
-    this.isochronicToneGain.gain.value = 0;
+    const maxVoices = 4;
+    const tones = activeTones.slice(0, maxVoices);
+    const totalVolume = tones.reduce((sum, t) => sum + t.volume, 0) || 1;
+    const volumeScale = 1 / totalVolume;
 
-    // Create LFO for pulsing
-    this.isochronicLfo = this.ctx.createOscillator();
-    this.isochronicLfo.type = 'square';
-    this.isochronicLfo.frequency.value = isochronicFreq;
+    this.isochronicVoices = tones.map((tone) => {
+      const osc = this.ctx!.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = tone.carrierFreq;
 
-    // LFO gain controls depth of modulation
-    this.isochronicLfoGain = this.ctx.createGain();
-    this.isochronicLfoGain.gain.value = 0.5;
+      const toneGain = this.ctx!.createGain();
+      toneGain.gain.value = tone.volume * volumeScale;
 
-    // Connect LFO to tone gain
-    this.isochronicLfo.connect(this.isochronicLfoGain);
-    this.isochronicLfoGain.connect(this.isochronicToneGain.gain);
+      const lfo = this.ctx!.createOscillator();
+      lfo.type = 'square';
+      lfo.frequency.value = tone.pulseFreq;
 
-    // Connect tone to output
-    this.isochronicOsc.connect(this.isochronicToneGain);
-    this.isochronicToneGain.connect(this.entrainmentGain);
+      const lfoGain = this.ctx!.createGain();
+      lfoGain.gain.value = 0.5;
 
-    // Set base gain (LFO oscillates around this)
-    this.isochronicToneGain.gain.value = 0.5;
+      // LFO modulates tone gain
+      lfo.connect(lfoGain);
+      lfoGain.connect(toneGain.gain);
 
-    this.isochronicOsc.start(now);
-    this.isochronicLfo.start(now);
+      // Connect tone to entrainment output
+      osc.connect(toneGain);
+      toneGain.connect(this.entrainmentGain!);
+
+      osc.start(now);
+      lfo.start(now);
+
+      return { osc, lfo, lfoGain, toneGain };
+    });
   }
 
   /**
@@ -250,16 +295,11 @@ export class AudioEngine {
     setTimeout(() => {
       this.binauralLeft?.stop();
       this.binauralRight?.stop();
-      this.isochronicOsc?.stop();
-      this.isochronicLfo?.stop();
-
       this.binauralLeft = null;
       this.binauralRight = null;
       this.binauralMerger = null;
-      this.isochronicOsc = null;
-      this.isochronicLfo = null;
-      this.isochronicLfoGain = null;
-      this.isochronicToneGain = null;
+
+      this.stopIsochronicVoices();
     }, 600);
 
     this.isEntrainmentPlaying = false;
@@ -446,10 +486,76 @@ export class AudioEngine {
    * Set isochronic pulse frequency (Hz)
    */
   setIsochronicFreq(freq: number): void {
-    this.config.isochronicFreq = freq;
-    if (this.isochronicLfo && this.ctx) {
-      this.isochronicLfo.frequency.setTargetAtTime(freq, this.ctx.currentTime, 0.5);
+    // Backwards-compat shim: apply same pulseFreq to all tones
+    this.config.isochronicTones = this.config.isochronicTones.map((tone) => ({
+      ...tone,
+      pulseFreq: freq,
+    }));
+
+    if (this.isochronicVoices.length && this.ctx) {
+      this.isochronicVoices.forEach((voice) => {
+        voice.lfo.frequency.setTargetAtTime(freq, this.ctx!.currentTime, 0.5);
+      });
     }
+  }
+
+  /**
+   * Replace current isochronic tones
+   */
+  setIsochronicTones(tones: IsochronicTone[]): void {
+    this.config.isochronicTones = tones;
+
+    // If isochronic is currently playing, rebuild voices
+    if (this.isEntrainmentPlaying && this.config.entrainmentType === 'isochronic') {
+      const now = this.ctx ? this.ctx.currentTime : 0;
+      this.startIsochronic(now);
+    }
+  }
+
+  /**
+   * Apply an isochronic preset
+   */
+  applyIsochronicPreset(name: IsochronicPresetName): void {
+    const preset = ISOCHRONIC_PRESETS[name];
+    if (!preset) return;
+
+    // Generate ids for tones
+    const tones: IsochronicTone[] = preset.tones.map((t, index) => ({
+      ...t,
+      id: `${name}-${index}`,
+    }));
+
+    this.setIsochronicTones(tones);
+  }
+
+  /**
+   * Update a single isochronic tone
+   */
+  updateIsochronicTone(id: string, partial: Partial<IsochronicTone>): void {
+    this.setIsochronicTones(
+      this.config.isochronicTones.map((tone) =>
+        tone.id === id ? { ...tone, ...partial } : tone
+      )
+    );
+  }
+
+  /**
+   * Stop and clean up all isochronic voices
+   */
+  private stopIsochronicVoices(): void {
+    if (!this.ctx || this.isochronicVoices.length === 0) return;
+
+    const now = this.ctx.currentTime;
+    this.isochronicVoices.forEach(({ osc, lfo, toneGain }) => {
+      toneGain.gain.setTargetAtTime(0, now, 0.2);
+      try {
+        osc.stop(now + 0.25);
+        lfo.stop(now + 0.25);
+      } catch {
+        // ignore double-stop
+      }
+    });
+    this.isochronicVoices = [];
   }
 
   /**

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { museHandler, MuseHandler } from '../lib/muse-handler';
-import { FlowStateDetector, calculateCoherence, getCoherenceZone, FlowStateConfig } from '../lib/flow-state';
+import { FlowStateDetector, calculateCoherence, getCoherenceZone } from '../lib/flow-state';
 import type { MuseState, FlowState, ThresholdSettings, ElectrodeStatus, ElectrodeQuality } from '../types';
 
 export interface UseMuseReturn {

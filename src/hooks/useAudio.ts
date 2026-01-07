@@ -1,8 +1,13 @@
 // React hook for audio engine control
 
 import { useState, useCallback, useEffect } from 'react';
-import { audioEngine, BINAURAL_PRESETS } from '../lib/audio-engine';
-import type { EntrainmentType, BinauralPresetName } from '../types';
+import { audioEngine, BINAURAL_PRESETS, ISOCHRONIC_PRESETS } from '../lib/audio-engine';
+import type {
+  EntrainmentType,
+  BinauralPresetName,
+  IsochronicPresetName,
+  IsochronicTone,
+} from '../types';
 
 export interface UseAudioReturn {
   entrainmentType: EntrainmentType;
@@ -11,6 +16,8 @@ export interface UseAudioReturn {
   binauralPreset: BinauralPresetName;
   binauralBeatFreq: number;
   binauralCarrierFreq: number;
+  isochronicPreset: IsochronicPresetName;
+  isochronicTones: IsochronicTone[];
   isRewardPlaying: boolean;
   setEntrainmentType: (type: EntrainmentType) => void;
   setEntrainmentEnabled: (enabled: boolean) => void;
@@ -18,6 +25,11 @@ export interface UseAudioReturn {
   setBinauralPreset: (preset: BinauralPresetName) => void;
   setBinauralBeatFreq: (freq: number) => void;
   setBinauralCarrierFreq: (freq: number) => void;
+  setIsochronicPreset: (preset: IsochronicPresetName) => void;
+  setIsochronicTones: (tones: IsochronicTone[]) => void;
+  addIsochronicTone: (tone: Omit<IsochronicTone, 'id'>) => void;
+  updateIsochronicTone: (id: string, partial: Partial<IsochronicTone>) => void;
+  removeIsochronicTone: (id: string) => void;
   startReward: () => Promise<void>;
   stopReward: () => void;
   init: () => Promise<void>;
@@ -34,6 +46,13 @@ export function useAudio(): UseAudioReturn {
   const [binauralPreset, setBinauralPresetState] = useState<BinauralPresetName>('alpha');
   const [binauralBeatFreq, setBinauralBeatFreqState] = useState(10);
   const [binauralCarrierFreq, setBinauralCarrierFreqState] = useState(200);
+  const [isochronicPreset, setIsochronicPresetState] = useState<IsochronicPresetName>('single_focus');
+  const [isochronicTones, setIsochronicTonesState] = useState<IsochronicTone[]>(
+    ISOCHRONIC_PRESETS.single_focus.tones.map((t, index) => ({
+      ...t,
+      id: `single_focus-${index}`,
+    }))
+  );
   const [isRewardPlaying, setIsRewardPlaying] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -100,6 +119,51 @@ export function useAudio(): UseAudioReturn {
     audioEngine.setBinauralCarrierFreq(freq);
   }, []);
 
+  const setIsochronicPreset = useCallback((preset: IsochronicPresetName) => {
+    setIsochronicPresetState(preset);
+    const presetConfig = ISOCHRONIC_PRESETS[preset];
+    if (!presetConfig) return;
+
+    const tones: IsochronicTone[] = presetConfig.tones.map((t, index) => ({
+      ...t,
+      id: `${preset}-${index}`,
+    }));
+
+    setIsochronicTonesState(tones);
+    audioEngine.applyIsochronicPreset(preset);
+  }, []);
+
+  const setIsochronicTones = useCallback((tones: IsochronicTone[]) => {
+    setIsochronicTonesState(tones);
+    audioEngine.setIsochronicTones(tones);
+  }, []);
+
+  const addIsochronicTone = useCallback((tone: Omit<IsochronicTone, 'id'>) => {
+    setIsochronicPresetState('single_focus');
+    setIsochronicTonesState((prev) => {
+      const id = `custom-${Date.now()}-${prev.length}`;
+      const updated = [...prev, { ...tone, id }];
+      audioEngine.setIsochronicTones(updated);
+      return updated;
+    });
+  }, []);
+
+  const updateIsochronicTone = useCallback((id: string, partial: Partial<IsochronicTone>) => {
+    setIsochronicTonesState((prev) => {
+      const updated = prev.map((tone) => (tone.id === id ? { ...tone, ...partial } : tone));
+      audioEngine.setIsochronicTones(updated);
+      return updated;
+    });
+  }, []);
+
+  const removeIsochronicTone = useCallback((id: string) => {
+    setIsochronicTonesState((prev) => {
+      const updated = prev.filter((tone) => tone.id !== id);
+      audioEngine.setIsochronicTones(updated);
+      return updated;
+    });
+  }, []);
+
   const startReward = useCallback(async () => {
     if (!isInitialized) {
       await init();
@@ -132,6 +196,8 @@ export function useAudio(): UseAudioReturn {
     binauralPreset,
     binauralBeatFreq,
     binauralCarrierFreq,
+    isochronicPreset,
+    isochronicTones,
     isRewardPlaying,
     setEntrainmentType,
     setEntrainmentEnabled,
@@ -139,6 +205,11 @@ export function useAudio(): UseAudioReturn {
     setBinauralPreset,
     setBinauralBeatFreq,
     setBinauralCarrierFreq,
+    setIsochronicPreset,
+    setIsochronicTones,
+    addIsochronicTone,
+    updateIsochronicTone,
+    removeIsochronicTone,
     startReward,
     stopReward,
     init,

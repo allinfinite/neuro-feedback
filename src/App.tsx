@@ -98,11 +98,24 @@ function App() {
             entrainmentVolume={audio.entrainmentVolume}
             binauralPreset={audio.binauralPreset}
             binauralBeatFreq={audio.binauralBeatFreq}
+            isochronicPreset={audio.isochronicPreset}
+            isochronicTones={audio.isochronicTones}
             onEntrainmentTypeChange={audio.setEntrainmentType}
             onEntrainmentEnabledChange={audio.setEntrainmentEnabled}
             onEntrainmentVolumeChange={audio.setEntrainmentVolume}
             onBinauralPresetChange={audio.setBinauralPreset}
             onBinauralBeatFreqChange={audio.setBinauralBeatFreq}
+            onIsochronicPresetChange={audio.setIsochronicPreset}
+            onIsochronicToneChange={audio.updateIsochronicTone}
+            onIsochronicToneAdd={() =>
+              audio.addIsochronicTone({
+                carrierFreq: 220,
+                pulseFreq: 10,
+                volume: 0.4,
+                enabled: true,
+              })
+            }
+            onIsochronicToneRemove={audio.removeIsochronicTone}
             // Threshold settings
             thresholdSettings={thresholdSettings}
             onThresholdSettingsChange={setThresholdSettings}
