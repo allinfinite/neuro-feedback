@@ -1,17 +1,30 @@
 // Connection Status Component
 // Shows Muse and headphone connection status
 
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface ConnectionStatusProps {
   museConnected: boolean;
   museDeviceName: string | null;
   connectionQuality: number;
   onConnectBluetooth: () => void;
-  onConnectOSC: () => void;
+  onConnectOSC: (url?: string) => void;
   onDisconnect: () => void;
   isBluetoothAvailable: boolean;
   error: string | null;
+}
+
+// Detect iOS/iPadOS
+function isIOS(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+// Detect if running in a WebBluetooth-capable browser on iOS (like Bluefy)
+function isWebBluetoothBrowser(): boolean {
+  return typeof navigator !== 'undefined' && navigator.bluetooth !== undefined;
 }
 
 export function ConnectionStatus({
@@ -24,6 +37,15 @@ export function ConnectionStatus({
   isBluetoothAvailable,
   error,
 }: ConnectionStatusProps) {
+  const [showOSCHelp, setShowOSCHelp] = useState(false);
+  const [oscUrl, setOscUrl] = useState('ws://localhost:8080');
+  const isiOSDevice = isIOS();
+  const showIOSWarning = isiOSDevice && !isWebBluetoothBrowser();
+
+  const handleOSCConnect = () => {
+    onConnectOSC(oscUrl || undefined);
+  };
+
   return (
     <div className="connection-status">
       <div className="status-bar">
@@ -82,6 +104,69 @@ export function ConnectionStatus({
       {/* Error Message */}
       {error && <div className="error-message">{error}</div>}
 
+      {/* iOS Warning */}
+      {!museConnected && showIOSWarning && (
+        <div className="ios-warning">
+          <div className="ios-warning-header">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+            </svg>
+            <span>Safari doesn't support Bluetooth</span>
+          </div>
+          <p className="ios-warning-text">
+            To connect your Muse on iOS, you have two options:
+          </p>
+          <div className="ios-options">
+            <div className="ios-option">
+              <strong>Option 1: Bluefy Browser</strong>
+              <p>Download the free <a href="https://apps.apple.com/app/bluefy-web-ble-browser/id1492822055" target="_blank" rel="noopener noreferrer">Bluefy app</a> from the App Store. It's a browser with Bluetooth support—just open this page there.</p>
+            </div>
+            <div className="ios-option">
+              <strong>Option 2: Mind Monitor + OSC</strong>
+              <p>Use the <a href="https://apps.apple.com/app/mind-monitor/id988527143" target="_blank" rel="noopener noreferrer">Mind Monitor app</a> to stream data via OSC to a computer running an OSC-WebSocket bridge.</p>
+              <button 
+                className="btn btn-text ios-help-btn"
+                onClick={() => setShowOSCHelp(!showOSCHelp)}
+              >
+                {showOSCHelp ? 'Hide setup guide' : 'Show setup guide'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* OSC Help Panel */}
+      <AnimatePresence>
+        {showOSCHelp && (
+          <motion.div 
+            className="osc-help-panel"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            <h4>OSC Setup Guide</h4>
+            <ol>
+              <li>Install <a href="https://apps.apple.com/app/mind-monitor/id988527143" target="_blank" rel="noopener noreferrer">Mind Monitor</a> on your iOS device</li>
+              <li>Connect your Muse to Mind Monitor via Bluetooth</li>
+              <li>On your computer, run an OSC-to-WebSocket bridge:
+                <code className="code-block">npx osc-js --udp 9000 --ws 8080</code>
+              </li>
+              <li>In Mind Monitor settings, set OSC Stream Target IP to your computer's IP</li>
+              <li>Start streaming in Mind Monitor, then connect below</li>
+            </ol>
+            <div className="osc-url-input">
+              <label>WebSocket URL:</label>
+              <input 
+                type="text" 
+                value={oscUrl} 
+                onChange={(e) => setOscUrl(e.target.value)}
+                placeholder="ws://localhost:8080"
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Connection Buttons */}
       {!museConnected && (
         <div className="connection-buttons">
@@ -93,7 +178,7 @@ export function ConnectionStatus({
               Connect Bluetooth
             </button>
           )}
-          <button className="btn btn-secondary" onClick={onConnectOSC}>
+          <button className="btn btn-secondary" onClick={handleOSCConnect}>
             <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
             </svg>

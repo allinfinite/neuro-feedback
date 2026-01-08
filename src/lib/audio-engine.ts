@@ -291,15 +291,36 @@ export class AudioEngine {
       this.entrainmentGain.gain.linearRampToValueAtTime(0, now + 0.5);
     }
 
-    // Stop after fade
-    setTimeout(() => {
-      this.binauralLeft?.stop();
-      this.binauralRight?.stop();
-      this.binauralLeft = null;
-      this.binauralRight = null;
-      this.binauralMerger = null;
+    // Capture current oscillator references before setTimeout
+    // This prevents the race condition where new oscillators get stopped
+    const binauralLeftToStop = this.binauralLeft;
+    const binauralRightToStop = this.binauralRight;
+    const isochronicVoicesToStop = [...this.isochronicVoices];
 
-      this.stopIsochronicVoices();
+    // Clear references immediately so new ones can be created
+    this.binauralLeft = null;
+    this.binauralRight = null;
+    this.binauralMerger = null;
+    this.isochronicVoices = [];
+
+    // Stop after fade using captured references
+    setTimeout(() => {
+      try {
+        binauralLeftToStop?.stop();
+        binauralRightToStop?.stop();
+      } catch {
+        // Ignore if already stopped
+      }
+      
+      // Stop captured isochronic voices
+      isochronicVoicesToStop.forEach(({ osc, lfo }) => {
+        try {
+          osc.stop();
+          lfo.stop();
+        } catch {
+          // Ignore if already stopped
+        }
+      });
     }, 600);
 
     this.isEntrainmentPlaying = false;
@@ -540,13 +561,16 @@ export class AudioEngine {
   }
 
   /**
-   * Stop and clean up all isochronic voices
+   * Stop and clean up all isochronic voices (with fade out)
    */
   private stopIsochronicVoices(): void {
     if (!this.ctx || this.isochronicVoices.length === 0) return;
 
     const now = this.ctx.currentTime;
-    this.isochronicVoices.forEach(({ osc, lfo, toneGain }) => {
+    const voicesToStop = [...this.isochronicVoices];
+    this.isochronicVoices = [];
+    
+    voicesToStop.forEach(({ osc, lfo, toneGain }) => {
       toneGain.gain.setTargetAtTime(0, now, 0.2);
       try {
         osc.stop(now + 0.25);
@@ -555,7 +579,6 @@ export class AudioEngine {
         // ignore double-stop
       }
     });
-    this.isochronicVoices = [];
   }
 
   /**

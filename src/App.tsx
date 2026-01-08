@@ -155,6 +155,8 @@ function App() {
             touching={muse.state.touching}
             electrodeStatus={muse.electrodeStatus}
             bands={muse.state.bandsSmooth}
+            bandsDb={muse.state.bandsDbSmooth}
+            batteryLevel={muse.state.batteryLevel}
             entrainmentEnabled={audio.entrainmentEnabled}
             onEntrainmentToggle={handleEntrainmentToggle}
             isRewardPlaying={audio.isRewardPlaying}

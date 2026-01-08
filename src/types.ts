@@ -26,14 +26,26 @@ export interface BrainwaveBands {
   gamma: number;
 }
 
+// Absolute power in dB (10 * log10(µV²/Hz))
+export interface BrainwaveBandsDb {
+  delta: number;
+  theta: number;
+  alpha: number;
+  beta: number;
+  gamma: number;
+}
+
 export interface MuseState {
   connected: boolean;
   connectionMode: 'bluetooth' | 'osc' | null;
   deviceName: string | null;
   touching: boolean;
   connectionQuality: number;
+  batteryLevel: number;             // Battery percentage (0-100), -1 if unknown
   bands: BrainwaveBands;
   bandsSmooth: BrainwaveBands;
+  bandsDb: BrainwaveBandsDb;        // Absolute power in dB
+  bandsDbSmooth: BrainwaveBandsDb;  // Smoothed dB values
   relaxationIndex: number;
   meditationIndex: number;
   focusIndex: number;

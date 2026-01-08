@@ -91,7 +91,7 @@ export class FFTProcessor {
   }
 
   /**
-   * Get power in a frequency band
+   * Get power in a frequency band (returns average power)
    */
   getBandPower(magnitudes: Float32Array, lowFreq: number, highFreq: number): number {
     const freqResolution = SAMPLE_RATE / this.size;
@@ -107,6 +107,22 @@ export class FFTProcessor {
     }
 
     return count > 0 ? sum / count : 0;
+  }
+
+  /**
+   * Get total (sum) power in a frequency band - used for absolute dB calculation
+   */
+  getBandPowerSum(magnitudes: Float32Array, lowFreq: number, highFreq: number): number {
+    const freqResolution = SAMPLE_RATE / this.size;
+    const lowBin = Math.max(1, Math.floor(lowFreq / freqResolution));
+    const highBin = Math.ceil(highFreq / freqResolution);
+
+    let sum = 0;
+    for (let i = lowBin; i <= highBin && i < magnitudes.length; i++) {
+      sum += magnitudes[i] * magnitudes[i]; // Power = magnitude^2
+    }
+
+    return sum;
   }
 
   /**

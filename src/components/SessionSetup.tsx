@@ -22,7 +22,7 @@ interface SessionSetupProps {
   connectionQuality: number;
   electrodeStatus: ElectrodeStatusType;
   onConnectBluetooth: () => void;
-  onConnectOSC: () => void;
+  onConnectOSC: (url?: string) => void;
   onDisconnect: () => void;
   isBluetoothAvailable: boolean;
   connectionError: string | null;

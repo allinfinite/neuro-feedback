@@ -4,7 +4,7 @@
 import { MuseClient } from 'muse-js';
 import OSC from 'osc-js';
 import { FFTProcessor, FFT_SIZE } from './fft-processor';
-import type { BrainwaveBands, MuseState } from '../types';
+import type { BrainwaveBands, BrainwaveBandsDb, MuseState } from '../types';
 
 type ConnectionMode = 'bluetooth' | 'osc' | null;
 type BrainState = 'disconnected' | 'deep' | 'meditative' | 'relaxed' | 'focused' | 'neutral';
@@ -37,6 +37,24 @@ export class MuseHandler {
     gamma: 0,
   };
 
+  // Absolute power in dB (10 * log10(power))
+  private _bandsDb: BrainwaveBandsDb = {
+    delta: 0,
+    theta: 0,
+    alpha: 0,
+    beta: 0,
+    gamma: 0,
+  };
+
+  // Smoothed dB values
+  private _bandsDbSmooth: BrainwaveBandsDb = {
+    delta: 0,
+    theta: 0,
+    alpha: 0,
+    beta: 0,
+    gamma: 0,
+  };
+
   // Auxiliary signals
   private _blink = 0;
   private _jawClench = 0;
@@ -57,6 +75,9 @@ export class MuseHandler {
   // Electrode quality (horseshoe indicator): [TP9, AF7, AF8, TP10]
   // Values: 1 = good, 2 = medium, 3 = poor, 4 = off
   private _electrodeQuality: number[] = [4, 4, 4, 4];
+
+  // Battery percentage (0-100)
+  private _batteryLevel: number = -1; // -1 = unknown
 
   // Derived states
   private _dominantWave = 'alpha';
@@ -155,6 +176,15 @@ export class MuseHandler {
               this._accY = lastSample.y;
               this._accZ = lastSample.z;
             }
+          }
+        );
+      }
+
+      // Subscribe to telemetry (battery level)
+      if (this.museClient.telemetryData) {
+        this.telemetrySubscription = this.museClient.telemetryData.subscribe(
+          (telemetry: { batteryLevel: number; temperature: number }) => {
+            this._batteryLevel = Math.round(telemetry.batteryLevel);
           }
         );
       }
@@ -273,6 +303,7 @@ export class MuseHandler {
    */
   private processBluetoothFFT(): void {
     const bandPowers = { delta: 0, theta: 0, alpha: 0, beta: 0, gamma: 0 };
+    const bandPowersSum = { delta: 0, theta: 0, alpha: 0, beta: 0, gamma: 0 };
     let validChannels = 0;
 
     for (let ch = 0; ch < 4; ch++) {
@@ -281,11 +312,19 @@ export class MuseHandler {
       const filtered = this.fft.highPassFilter(this.eegBuffers[ch], 1.0);
       const magnitudes = this.fft.compute(filtered);
 
+      // Average power (for relative calculation)
       bandPowers.delta += this.fft.getBandPower(magnitudes, 1, 4);
       bandPowers.theta += this.fft.getBandPower(magnitudes, 4, 8);
       bandPowers.alpha += this.fft.getBandPower(magnitudes, 8, 13);
       bandPowers.beta += this.fft.getBandPower(magnitudes, 13, 30);
       bandPowers.gamma += this.fft.getBandPower(magnitudes, 30, 44);
+
+      // Sum power (for absolute dB calculation)
+      bandPowersSum.delta += this.fft.getBandPowerSum(magnitudes, 1, 4);
+      bandPowersSum.theta += this.fft.getBandPowerSum(magnitudes, 4, 8);
+      bandPowersSum.alpha += this.fft.getBandPowerSum(magnitudes, 8, 13);
+      bandPowersSum.beta += this.fft.getBandPowerSum(magnitudes, 13, 30);
+      bandPowersSum.gamma += this.fft.getBandPowerSum(magnitudes, 30, 44);
 
       validChannels++;
     }
@@ -295,9 +334,26 @@ export class MuseHandler {
     // Average across channels
     for (const band in bandPowers) {
       bandPowers[band as keyof typeof bandPowers] /= validChannels;
+      bandPowersSum[band as keyof typeof bandPowersSum] /= validChannels;
     }
 
-    // Apply 1/f correction
+    // Calculate absolute dB values using sum power (not averaged)
+    // This matches Mind Monitor's convention which shows ~90-130 dB
+    // dB = 10 * log10(power_sum), reference is 1 µV²
+    const MIN_POWER = 1e-12;
+    const dbDelta = 10 * Math.log10(Math.max(bandPowersSum.delta, MIN_POWER));
+    const dbTheta = 10 * Math.log10(Math.max(bandPowersSum.theta, MIN_POWER));
+    const dbAlpha = 10 * Math.log10(Math.max(bandPowersSum.alpha, MIN_POWER));
+    const dbBeta = 10 * Math.log10(Math.max(bandPowersSum.beta, MIN_POWER));
+    const dbGamma = 10 * Math.log10(Math.max(bandPowersSum.gamma, MIN_POWER));
+    
+    this.updateBandDb('delta', dbDelta);
+    this.updateBandDb('theta', dbTheta);
+    this.updateBandDb('alpha', dbAlpha);
+    this.updateBandDb('beta', dbBeta);
+    this.updateBandDb('gamma', dbGamma);
+
+    // Apply 1/f correction for relative power calculation
     bandPowers.theta *= 1.5;
     bandPowers.alpha *= 2.0;
     bandPowers.beta *= 3.0;
@@ -345,6 +401,7 @@ export class MuseHandler {
     this._electrodeQuality = [4, 4, 4, 4];
     this.eegAmplitudes = [0, 0, 0, 0];
     this.eegVariances = [0, 0, 0, 0];
+    this._batteryLevel = -1;
 
     this.callbacks.onDisconnect?.();
   }
@@ -468,6 +525,12 @@ export class MuseHandler {
         case '/muse/elements/touching_forehead':
           this._touching = this.parseValue(args) > 0;
           break;
+        case '/muse/batt':
+          // Battery: [charge%, fuel_gauge_mv, adc_voltage, temperature_C]
+          if (Array.isArray(args) && args.length >= 1) {
+            this._batteryLevel = Math.round(args[0]);
+          }
+          break;
       }
     } catch {
       // Silently ignore parse errors
@@ -500,6 +563,18 @@ export class MuseHandler {
 
     this.updateDerivedStates();
     this.emitDataUpdate();
+  }
+
+  /**
+   * Update a brainwave band dB value with smoothing
+   */
+  private updateBandDb(band: keyof BrainwaveBandsDb, dbValue: number): void {
+    // Clamp dB values to reasonable EEG range (0 to 150 dB)
+    dbValue = Math.max(0, Math.min(150, dbValue));
+    this._bandsDb[band] = dbValue;
+
+    this._bandsDbSmooth[band] =
+      this._bandsDbSmooth[band] * this.smoothingFactor + dbValue * (1 - this.smoothingFactor);
   }
 
   /**
@@ -566,6 +641,7 @@ export class MuseHandler {
     this._electrodeQuality = [4, 4, 4, 4];
     this.eegAmplitudes = [0, 0, 0, 0];
     this.eegVariances = [0, 0, 0, 0];
+    this._batteryLevel = -1;
   }
 
   /**
@@ -605,8 +681,11 @@ export class MuseHandler {
       deviceName: this._deviceName,
       touching: this._touching,
       connectionQuality: this._connectionQuality,
+      batteryLevel: this._batteryLevel,
       bands: { ...this._bands },
       bandsSmooth: { ...this._bandsSmooth },
+      bandsDb: { ...this._bandsDb },
+      bandsDbSmooth: { ...this._bandsDbSmooth },
       relaxationIndex: this._relaxationIndex,
       meditationIndex: this._meditationIndex,
       focusIndex: this._focusIndex,
@@ -645,6 +724,12 @@ export class MuseHandler {
   get bandsSmooth(): BrainwaveBands {
     return { ...this._bandsSmooth };
   }
+  get bandsDb(): BrainwaveBandsDb {
+    return { ...this._bandsDb };
+  }
+  get bandsDbSmooth(): BrainwaveBandsDb {
+    return { ...this._bandsDbSmooth };
+  }
   get touching(): boolean {
     return this._touching;
   }
@@ -668,6 +753,9 @@ export class MuseHandler {
   }
   get accZ(): number {
     return this._accZ;
+  }
+  get batteryLevel(): number {
+    return this._batteryLevel;
   }
 }
 

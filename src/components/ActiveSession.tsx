@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { CoherenceGraph } from './CoherenceGraph';
 import { ElectrodeStatus } from './ElectrodeStatus';
-import type { ElectrodeStatus as ElectrodeStatusType, BrainwaveBands } from '../types';
+import type { ElectrodeStatus as ElectrodeStatusType, BrainwaveBands, BrainwaveBandsDb } from '../types';
 
 interface ActiveSessionProps {
   // Session data
@@ -19,6 +19,8 @@ interface ActiveSessionProps {
   touching: boolean;
   electrodeStatus: ElectrodeStatusType;
   bands: BrainwaveBands;
+  bandsDb: BrainwaveBandsDb;
+  batteryLevel: number;
 
   // Audio
   entrainmentEnabled: boolean;
@@ -39,12 +41,15 @@ export function ActiveSession({
   museConnected,
   touching,
   electrodeStatus,
-  bands,
+  bands: _bands, // Keep for potential future use
+  bandsDb,
+  batteryLevel,
   entrainmentEnabled,
   onEntrainmentToggle,
   isRewardPlaying,
   onEndSession,
 }: ActiveSessionProps) {
+  void _bands; // Silence unused warning
   // Format time display
   const formatTime = (ms: number) => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -64,6 +69,22 @@ export function ActiveSession({
       <header className="session-header">
         <div className="header-left">
           <span className="muse-logo">muse</span>
+          {batteryLevel >= 0 && (
+            <span className={`battery-indicator ${batteryLevel <= 20 ? 'low' : ''}`}>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                {batteryLevel > 75 ? (
+                  <path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z" />
+                ) : batteryLevel > 50 ? (
+                  <path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4zM13 18H11V9h2v9z" />
+                ) : batteryLevel > 25 ? (
+                  <path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4zM13 18H11V13h2v5z" />
+                ) : (
+                  <path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4zM13 18H11V16h2v2z" />
+                )}
+              </svg>
+              <span className="battery-text">{batteryLevel}%</span>
+            </span>
+          )}
         </div>
         <div className="header-right">
           <div className={`status-dot ${museConnected && touching ? 'active' : 'warning'}`} />
@@ -82,53 +103,26 @@ export function ActiveSession({
         <ElectrodeStatus status={electrodeStatus} compact />
       </div>
 
-      {/* Live Brainwave Bars */}
+      {/* Live Brainwave Bars - showing dB values */}
       <div className="brainwave-bars">
-        <div className="band-bar">
-          <span className="band-label">δ</span>
-          <motion.div 
-            className="band-fill delta" 
-            animate={{ width: `${Math.min(100, bands.delta * 200)}%` }}
-            transition={{ duration: 0.15 }}
-          />
-          <span className="band-value">{(bands.delta * 100).toFixed(0)}%</span>
-        </div>
-        <div className="band-bar">
-          <span className="band-label">θ</span>
-          <motion.div 
-            className="band-fill theta" 
-            animate={{ width: `${Math.min(100, bands.theta * 200)}%` }}
-            transition={{ duration: 0.15 }}
-          />
-          <span className="band-value">{(bands.theta * 100).toFixed(0)}%</span>
-        </div>
-        <div className="band-bar">
-          <span className="band-label">α</span>
-          <motion.div 
-            className="band-fill alpha" 
-            animate={{ width: `${Math.min(100, bands.alpha * 200)}%` }}
-            transition={{ duration: 0.15 }}
-          />
-          <span className="band-value">{(bands.alpha * 100).toFixed(0)}%</span>
-        </div>
-        <div className="band-bar">
-          <span className="band-label">β</span>
-          <motion.div 
-            className="band-fill beta" 
-            animate={{ width: `${Math.min(100, bands.beta * 200)}%` }}
-            transition={{ duration: 0.15 }}
-          />
-          <span className="band-value">{(bands.beta * 100).toFixed(0)}%</span>
-        </div>
-        <div className="band-bar">
-          <span className="band-label">γ</span>
-          <motion.div 
-            className="band-fill gamma" 
-            animate={{ width: `${Math.min(100, bands.gamma * 200)}%` }}
-            transition={{ duration: 0.15 }}
-          />
-          <span className="band-value">{(bands.gamma * 100).toFixed(0)}%</span>
-        </div>
+        {(['delta', 'theta', 'alpha', 'beta', 'gamma'] as const).map((band) => {
+          const dbVal = bandsDb[band];
+          // Map dB range (50-150 dB) to bar width (0-100%) - matches Mind Monitor range
+          const barWidth = Math.max(0, Math.min(100, ((dbVal - 50) / 100) * 100));
+          const symbol = { delta: 'δ', theta: 'θ', alpha: 'α', beta: 'β', gamma: 'γ' }[band];
+          
+          return (
+            <div className="band-bar" key={band}>
+              <span className="band-label">{symbol}</span>
+              <motion.div 
+                className={`band-fill ${band}`}
+                animate={{ width: `${barWidth}%` }}
+                transition={{ duration: 0.15 }}
+              />
+              <span className="band-value">{dbVal.toFixed(0)}</span>
+            </div>
+          );
+        })}
       </div>
 
       {/* Main Content - Coherence Graph */}

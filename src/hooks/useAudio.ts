@@ -40,7 +40,7 @@ export interface UseAudioReturn {
 export { BINAURAL_PRESETS };
 
 export function useAudio(): UseAudioReturn {
-  const [entrainmentType, setEntrainmentTypeState] = useState<EntrainmentType>('none');
+  const [entrainmentType, setEntrainmentTypeState] = useState<EntrainmentType>('binaural');
   const [entrainmentEnabled, setEntrainmentEnabledState] = useState(false);
   const [entrainmentVolume, setEntrainmentVolumeState] = useState(0.3);
   const [binauralPreset, setBinauralPresetState] = useState<BinauralPresetName>('alpha');
@@ -84,8 +84,13 @@ export function useAudio(): UseAudioReturn {
         await init();
       }
 
-      if (enabled && entrainmentType !== 'none') {
-        await audioEngine.startEntrainment(entrainmentType);
+      if (enabled) {
+        // If entrainment is enabled but type is 'none', default to binaural
+        const typeToUse = entrainmentType === 'none' ? 'binaural' : entrainmentType;
+        if (entrainmentType === 'none') {
+          setEntrainmentTypeState('binaural');
+        }
+        await audioEngine.startEntrainment(typeToUse);
       } else {
         audioEngine.stopEntrainment();
       }
